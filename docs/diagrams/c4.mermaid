@@ -1,0 +1,20 @@
+C4Container
+    title Diagrama C4 para API Template
+
+    Person(user, "Usuário", "Usuário da API")
+    System_Boundary(api, "API Template") {
+        Container(api_server, "Servidor API", "FastAPI", "Lida com requisições HTTP")
+        Container(db, "Banco de Dados", "PostgreSQL", "Armazena dados da aplicação")
+        Container(celery_worker, "Worker Celery", "Celery", "Processa tarefas assíncronas")
+        Container(message_queue, "Fila de Mensagens", "RabbitMQ", "Gerencia filas de mensagens")
+        Container(external_api, "Módulo API Externa", "Python", "Integra com APIs externas")
+    }
+    System_Ext(external_services, "Serviços Externos", "APIs de terceiros")
+
+    Rel(user, api_server, "Usa", "HTTP")
+    Rel(api_server, db, "Lê/Escreve", "SQL")
+    Rel(api_server, celery_worker, "Envia tarefas", "AMQP")
+    Rel(api_server, message_queue, "Publica/Consome", "AMQP")
+    Rel(celery_worker, message_queue, "Consome tarefas", "AMQP")
+    Rel(api_server, external_api, "Usa")
+    Rel(external_api, external_services, "Chama", "HTTP")

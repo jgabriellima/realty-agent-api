@@ -1,0 +1,171 @@
+openapi: 3.0.0
+info:
+  title: Tavily Search API
+  description: REST API for accessing Tavily Search, a search engine tailored for LLM Agents.
+  version: 1.0.0
+  contact:
+    name: Tavily Developer Community
+    url: https://tavily.com/
+
+servers:
+  - url: https://api.tavily.com
+
+paths:
+  /search:
+    post:
+      summary: Search for data based on a query
+      operationId: search
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '400':
+          description: Bad Request — Your request is invalid
+        '401':
+          description: Unauthorized — Your API key is wrong
+        '403':
+          description: Forbidden — The endpoint requested is hidden for administrators only
+        '404':
+          description: Not Found — The specified endpoint could not be found
+        '405':
+          description: Method Not Allowed — You tried to access an endpoint with an invalid method
+        '422':
+          description: Unprocessable Content - You submitted a request with invalid data
+        '429':
+          description: Too Many Requests — You're sending too many requests
+        '500':
+          description: Internal Server Error — We had a problem with our server
+        '503':
+          description: Service Unavailable — We're temporarily offline for maintenance
+        '504':
+          description: Gateway Timeout — We're temporarily offline for maintenance
+
+components:
+  schemas:
+    SearchRequest:
+      type: object
+      required:
+        - query
+        - api_key
+      properties:
+        query:
+          type: string
+          description: The search query you want to execute with Tavily
+        api_key:
+          type: string
+          description: Your Tavily API Key
+        search_depth:
+          type: string
+          enum: [ basic, advanced ]
+          default: basic
+          description: The depth of the search
+        topic:
+          type: string
+          enum: [ general, news ]
+          default: general
+          description: The category of the search
+        days:
+          type: integer
+          default: 3
+          description: The number of days back from the current date to include in the search results (only for "news" topic)
+        max_results:
+          type: integer
+          default: 5
+          description: The maximum number of search results to return
+        include_images:
+          type: boolean
+          default: false
+          description: Include a list of query-related images in the response
+        include_answer:
+          type: boolean
+          default: false
+          description: Include a short answer to original query
+        include_raw_content:
+          type: boolean
+          default: false
+          description: Include the cleaned and parsed HTML content of each search result
+        include_domains:
+          type: array
+          items:
+            type: string
+          default: [ ]
+          description: A list of domains to specifically include in the search results
+        exclude_domains:
+          type: array
+          items:
+            type: string
+          default: [ ]
+          description: A list of domains to specifically exclude from the search results
+
+    SearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: The search query
+        follow_up_questions:
+          type: array
+          items:
+            type: string
+          nullable: true
+          description: Follow-up questions related to the search query
+        answer:
+          type: string
+          nullable: true
+          description: The answer to the search query
+        images:
+          type: array
+          items:
+            type: string
+          description: A list of query related image URLs
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SearchResult'
+        response_time:
+          type: number
+          format: float
+          description: The search result response time
+
+    SearchResult:
+      type: object
+      properties:
+        title:
+          type: string
+          description: The title of the search result URL
+        url:
+          type: string
+          description: The URL of the search result
+        content:
+          type: string
+          description: The most query related content from the scraped URL
+        raw_content:
+          type: string
+          nullable: true
+          description: The parsed and cleaned HTML of the site
+        score:
+          type: number
+          format: float
+          description: The relevance score of the search result
+        published_date:
+          type: string
+          nullable: true
+          description: The publication date of the source (only available for "news" topic)
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+security:
+  - ApiKeyAuth: [ ]

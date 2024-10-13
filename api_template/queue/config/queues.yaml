@@ -1,0 +1,21 @@
+queues:
+  - name: user_channel
+    type: rabbitmq
+    port: 5672
+    broker_url: rabbitmq
+    enable_publisher: true
+    enable_consumer: true
+    heartbeat: 60
+    enable_dlq: true
+    ssl:
+      enabled: false
+  - name: log_channel
+    type: rabbitmq
+    port: 5672
+    broker_url: rabbitmq
+    enable_publisher: true
+    enable_consumer: false
+    heartbeat: 60
+    enable_dlq: true
+    ssl:
+      enabled: false

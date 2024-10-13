@@ -1,0 +1,5 @@
+run-example-task-every-minute:
+  task: api_template.celery.tasks.general_tasks.example_task
+  schedule: 60.0
+  args:
+    - "teste"

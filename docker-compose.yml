@@ -1,0 +1,173 @@
+version: "3.8"
+
+services:
+  api:
+    image: api:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENV: ${ENV:-prod}
+    deploy:
+      replicas: 1
+    env_file:
+      - .env
+    environment:
+      - MODE=api
+      - API_PORT=8000
+      - API_WORKERS=2
+      - ENV=${ENV:-prod}
+    ports:
+      - "${API_PORT:-8000}:8000"
+    networks:
+      - internal_network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://api:8000/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - postgres
+      - rabbitmq
+
+  celery_worker:
+    image: celery:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        ENV: ${ENV:-prod}
+    deploy:
+      replicas: 1
+    env_file:
+      - .env
+    environment:
+      - MODE=worker
+      - ENV=${ENV:-prod}
+    networks:
+      - internal_network
+    healthcheck:
+      test: [ "CMD-SHELL", "celery -A api_template.celery.app inspect ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    volumes:
+      - .:/app
+    depends_on:
+      - redis
+      - rabbitmq
+
+  celery_beat:
+    image: celery:${IMAGE_TAG}
+    deploy:
+      replicas: 1
+    env_file:
+      - .env
+    environment:
+      - MODE=beat
+    networks:
+      - internal_network
+    depends_on:
+      - celery_worker
+
+  flower:
+    image: flower:${IMAGE_TAG}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      - MODE=flower
+    ports:
+      - "5555:5555"
+    networks:
+      - internal_network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://flower:5555" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    depends_on:
+      - celery_worker
+
+  rabbitmq:
+    image: "rabbitmq:3-management"
+    deploy:
+      replicas: 1
+    env_file:
+      - .env
+    environment:
+      RABBITMQ_DEFAULT_USER: ${QUEUE_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${QUEUE_PASSWORD}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    networks:
+      - internal_network
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: "redis:6.2"
+    deploy:
+      replicas: 1
+    env_file:
+      - .env
+    ports:
+      - "6379:6379"
+    networks:
+      - internal_network
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres:
+    image: "postgres:latest"
+    deploy:
+      replicas: 1
+    env_file:
+      - .env
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    networks:
+      - internal_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+networks:
+  internal_network:
+    driver: bridge
+
+volumes:
+  rabbitmq_data:
+  redis_data:
+  postgres_data:
